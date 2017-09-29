@@ -23,7 +23,7 @@ There is an parameters in line 276:
 
 This was very useful for me, because my project was generating a lot of debugging, and with this profiler it became easier to identify the bottlenecks
 
-To install, just donwload the file idf_monitor.py, just go to $IDF_PATH/tools, rename the original file and copy the new idf_monitor.py
+To install, just download the file idf_monitor.py, just go to $IDF_PATH/tools, rename the original file and copy the new idf_monitor.py
 
 I hope it's useful
 
