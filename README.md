@@ -16,11 +16,10 @@ It's very simple, I read the time in micros at the beginning of each line,
 calculate and show the difference between the time of the line and the time of the previous line
 and display this in greeen, yellow or red.
 There is an parameters in line 276:
-[code]
-self.PROFILER_MIN_MICROS_GREEN  = 0   # if the time is equal or greater this, show profiler in green
-self.PROFILER_MIN_MICROS_YELLOW = 50  # if the time is equal or greater this, show profiler in yellow
-self.PROFILER_MIN_MICROS_RED    = 250 # if the time is equal or greater this, show profiler in red
-[/code]
+
+    self.PROFILER_MIN_MICROS_GREEN  = 0   # if the time is equal or greater this, show profiler in green
+    self.PROFILER_MIN_MICROS_YELLOW = 50  # if the time is equal or greater this, show profiler in yellow
+    self.PROFILER_MIN_MICROS_RED    = 250 # if the time is equal or greater this, show profiler in red
 
 This was very useful for me, because my project was generating a lot of debugging, and with this profiler it became easier to identify the bottlenecks
 
