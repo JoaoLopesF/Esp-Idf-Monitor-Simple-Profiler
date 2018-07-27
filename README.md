@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 ## ESP-IDF Monitor - Simple profiler
+=======
+##ESP-IDF Monitor - Simple profiler
+>>>>>>> a071e500c6992e6779e7c3be0452d795bcfd62fa
 
 ## Update of IDF Monitor to give a simple profiler output
 
