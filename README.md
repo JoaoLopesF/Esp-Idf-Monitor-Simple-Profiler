@@ -23,11 +23,11 @@ There is an parameters in line 276:
 
 This was very useful for me, because my project was generating a lot of debugging, and with this profiler it became easier to identify the bottlenecks
 
-To install, just download the file idf_monitor.py, just go to $IDF_PATH/tools, rename the original file and copy the new idf_monitor.py
-
 Have 2 versions of monitor with simple profile
-- v3.0 -> to use in v3.0.* of Esp-Idf
-- v3.1 -> to use in v3.1.* of Esp-Idf
+- esp-idf-v3.0 -> to use in v3.0.* of Esp-Idf
+- esp-idf-v3.1 -> to use in v3.1.* of Esp-Idf
+
+To install, just download the file idf_monitor.py, just go to $IDF_PATH/tools, rename the original file and copy the new idf_monitor.py
 
 I hope it's useful
 
