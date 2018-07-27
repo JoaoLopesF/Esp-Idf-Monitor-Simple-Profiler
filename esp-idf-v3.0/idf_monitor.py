@@ -27,6 +27,11 @@
 #
 # Originally released under BSD-3-Clause license.
 #
+
+### Begin change - Profiler - Joao Lopes
+# Simple profiler for Esp-Idf v3.0 - show differences of time between lines
+### End change - Profiler - Joao Lopes
+
 from __future__ import print_function, division
 import subprocess
 import argparse
@@ -55,6 +60,8 @@ CTRL_F = '\x06'
 CTRL_H = '\x08'
 CTRL_R = '\x12'
 CTRL_T = '\x14'
+CTRL_Y = '\x19'
+CTRL_P = '\x10'
 CTRL_RBRACKET = '\x1d'  # Ctrl+]
 
 # ANSI terminal codes
@@ -94,18 +101,12 @@ def yellow_write(message, line_color):
 def red_write(message, line_color):
     color_write(message, ANSI_RED, line_color)
 
-#CTRL_Y = '\x19' #TODO: see better key - this not working yet
-
-### Begin change - Profiler - Joao Lopes
-
 profiler_reading_micros = False
 profiler_reading_color = True
 profiler_line_color = ""
 profiler_micros = ""
 profiler_pos_line = 0
 profiler_micros_val = 0
-
-### End change
 
 ### End change - Profiler - Joao Lopes
 
@@ -200,7 +201,7 @@ class ConsoleReader(StoppableThread):
             # this is the way cancel() is implemented in pyserial 3.3 or newer,
             # older pyserial (3.1+) has cancellation implemented via 'select',
             # which does not work when console sends an escape sequence response
-            #
+            # 
             # even older pyserial (<3.1) does not have this method
             #
             # on Windows there is a different (also hacky) fix, applied above.
@@ -271,9 +272,9 @@ class Monitor(object):
                 if c == unichr(0x7f):
                     c = unichr(8)    # map the BS key (which yields DEL) to backspace
                 return c
-
-            self.console.getkey = types.MethodType(getkey_patched, self.console)
-
+            
+            self.console.getkey = types.MethodType(getkey_patched, self.console) 
+        
         self.serial = serial_instance
         self.console_reader = ConsoleReader(self.console, self.event_queue)
         self.serial_reader = SerialReader(self.serial, self.event_queue)
@@ -293,11 +294,12 @@ class Monitor(object):
         self._pressed_menu_key = False
         self._read_line = b""
         self._gdb_buffer = b""
+        self._output_enabled = True
 
         ### Begin change - Profiler - Joao Lopes
         self.PROFILER_MIN_MICROS_GREEN  = 0   # if the time is equal or greater this, show profiler in green
-        self.PROFILER_MIN_MICROS_YELLOW = 50  # if the time is equal or greater this, show profiler in yellow
-        self.PROFILER_MIN_MICROS_RED    = 250 # if the time is equal or greater this, show profiler in red
+        self.PROFILER_MIN_MICROS_YELLOW = 10  # if the time is equal or greater this, show profiler in yellow
+        self.PROFILER_MIN_MICROS_RED    = 100 # if the time is equal or greater this, show profiler in red
         self.PROFILER = True     # profiler active ? #TODO: parameter ?
         self.profiler_ult_micros = 0 # last profiler_micros received
         ### End change - Profiler - Joao Lopes
@@ -337,22 +339,26 @@ class Monitor(object):
                 self.serial.write(codecs.encode(key))
             except serial.SerialException:
                 pass # this shouldn't happen, but sometimes port has closed in serial thread
+            except UnicodeEncodeError:
+                pass # this can happen if a non-ascii character was passed, ignoring
 
     def handle_serial_input(self, data):
-        # this may need to be made more efficient, as it pushes out a byte
-        # at a time to the console
-
-        ### Original Code
-        #for b in data:
-        #    self.console.write_bytes(b)
-        #    if b == b'\n': # end of line
-        #        self.handle_serial_input_line(self._read_line.strip())
-        #        self._read_line = b""
-        #    else:
-        #        self._read_line += b
-        #    self.check_gdbstub_trigger(b)
-
         ### Begin change - Profiler - Joao Lopes
+
+        # ### Original Code
+        # # this may need to be made more efficient, as it pushes out a byte
+        # # at a time to the console
+        # for b in data:
+        #     if self._output_enabled:
+        #         self.console.write_bytes(b)
+        #     if b == b'\n': # end of line
+        #         self.handle_serial_input_line(self._read_line.strip())
+        #         self._read_line = b""
+        #     else:
+        #         self._read_line += b
+        #     self.check_gdbstub_trigger(b)
+
+### Begin change - Profiler - Joao Lopes
 
         profiler_reading_micros = False
         profiler_reading_color = True
@@ -362,92 +368,96 @@ class Monitor(object):
         profiler_micros_val = 0
 
         for b in data:
+            if self._output_enabled:
+                self.console.write_bytes(b)
 
-            self.console.write_bytes(b)
+                # print ("b = " + str(b) + " pos " + str(profiler_pos_line) +
+                #         " read color " + str(profiler_reading_color) +
+                #         " micros " + str(profiler_reading_micros))
 
-            # print ("b = " + str(b) + " pos " + str(profiler_pos_line) +
-            #         " read color " + str(profiler_reading_color) +
-            #         " micros " + str(profiler_reading_micros))
+                ### Simple Profiler
 
-            ### Simple Profiler
+                if profiler_pos_line < 20 and profiler_micros_val == 0:  # The profiler_micros and colors must be in init of line, to avoid another number between ()
 
-            if profiler_pos_line < 20 and profiler_micros_val == 0:  # The profiler_micros and colors must be in init of line, to avoid another number between ()
+                    profiler_pos_line += 1
 
-                profiler_pos_line += 1
+                    # Verify the color at begin of line
 
-                # Verify the color at begin of line
-
-                if profiler_reading_color:
-                    if profiler_pos_line > 9:
-                        profiler_reading_color = False
-                        profiler_line_color = ""
-                    else:
-                        profiler_line_color += b
-                        if b == 'm': # Until find 'm'
+                    if profiler_reading_color:
+                        if profiler_pos_line > 9:
                             profiler_reading_color = False
-                        elif b == '[': # Have Escape before ?
-                            if len(profiler_line_color) == 1:
-                                profiler_line_color = '\033' + profiler_line_color
-
-                # Verify the profiler_micros between ()
-
-                if b == '(' and profiler_micros_val == 0:
-                    profiler_reading_micros = True
-                    if profiler_reading_color: # se ainda nao leu a cor, zera isto
-                        profiler_reading_color = False
-                        profiler_line_color = ""
-                elif b == ')' and profiler_reading_micros == True:
-                    profiler_reading_micros = False
-
-                    # Convert it to number
-
-                    if profiler_micros != "":
-                        try:
-                            profiler_micros_val = int(profiler_micros)
-                        except:
-                            profiler_micros_val = -1
-
-                    # Show the profiler
-                    if profiler_micros_val > 0 and self.profiler_ult_micros > 0:
-                        dif = (profiler_micros_val - self.profiler_ult_micros)
-                        if dif >= self.PROFILER_MIN_MICROS_RED:
-                            red_write ("P(" + str(dif) +  ")", profiler_line_color)
-                        elif dif >= self.PROFILER_MIN_MICROS_YELLOW:
-                            yellow_write ("P(" + str(dif) +  ")", profiler_line_color)
+                            profiler_line_color = ""
                         else:
-                            green_write ("P(" + str(dif) +  ")", profiler_line_color)
+                            profiler_line_color += b
+                            if b == 'm': # Until find 'm'
+                                profiler_reading_color = False
+                            elif b == '[': # Have Escape before ?
+                                if len(profiler_line_color) == 1:
+                                    profiler_line_color = '\033' + profiler_line_color
 
-                        # TODO: ident ???
-                        #if profiler_micros_val < 10000:
-                        #    self.serial.write("\t")
+                    # Verify the profiler_micros between ()
 
-                    # Save this value
-                    if profiler_micros_val > 0:
-                        self.profiler_ult_micros = profiler_micros_val
+                    if b == '(' and profiler_micros_val == 0:
+                        profiler_reading_micros = True
+                        if profiler_reading_color: # se ainda nao leu a cor, zera isto
+                            profiler_reading_color = False
+                            profiler_line_color = ""
+                    elif b == ')' and profiler_reading_micros == True:
+                        profiler_reading_micros = False
+
+                        # Convert it to number
+
+                        if profiler_micros != "":
+                            try:
+                                profiler_micros_val = int(profiler_micros)
+                            except:
+                                profiler_micros_val = -1
+
+                        # Show the profiler
+                        if profiler_micros_val > 0 and self.profiler_ult_micros > 0:
+                            dif = (profiler_micros_val - self.profiler_ult_micros)
+                            strDif = ""
+                            if dir >= 0 and dif < 10:
+                                strDif = "0" + str(dif)
+                            else:
+                                strDif = str(dif)
+                            if dif >= self.PROFILER_MIN_MICROS_RED:
+                                red_write ("P!(" + strDif +  ")", profiler_line_color)
+                            elif dif >= self.PROFILER_MIN_MICROS_YELLOW:
+                                yellow_write ("P(" + strDif +  ")", profiler_line_color)
+                            else:
+                                green_write ("P(" + strDif +  ")", profiler_line_color)
+
+                            # TODO: ident ???
+                            #if profiler_micros_val < 10000:
+                            #    self.serial.write("\t")
+
+                        # Save this value
+                        if profiler_micros_val > 0:
+                            self.profiler_ult_micros = profiler_micros_val
+                    else:
+                        # Concat the number
+                        if profiler_reading_micros and profiler_micros_val == 0:
+                            profiler_micros += b
+
+                if b == b'\n': # end of line
+                    self.handle_serial_input_line(self._read_line.strip())
+                    self._read_line = b""
+                    # Init variables of profiler
+                    profiler_reading_micros = False
+                    profiler_reading_color = True
+                    profiler_line_color = ""
+                    profiler_micros = ""
+                    profiler_pos_line = 0
+                    profiler_micros_val = 0
                 else:
-                    # Concat the number
-                    if profiler_reading_micros and profiler_micros_val == 0:
-                        profiler_micros += b
+                    self._read_line += b
 
-            if b == b'\n': # end of line
-                self.handle_serial_input_line(self._read_line.strip())
-                self._read_line = b""
-                # Init variables of profiler
-                profiler_reading_micros = False
-                profiler_reading_color = True
-                profiler_line_color = ""
-                profiler_micros = ""
-                profiler_pos_line = 0
-                profiler_micros_val = 0
-            else:
-                self._read_line += b
+        self.check_gdbstub_trigger(b)
 
-            self.check_gdbstub_trigger(b)
-
-        ### End change - Profiler - Joao Lopes
+    ### End change - Profiler - Joao Lopes
 
     def handle_serial_input_line(self, line):
-
         for m in re.finditer(MATCH_PCADDR, line):
             self.lookup_pc_address(m.group())
 
@@ -460,19 +470,23 @@ class Monitor(object):
             self.serial.setRTS(True)
             time.sleep(0.2)
             self.serial.setRTS(False)
+            self.output_enable(True)
         elif c == CTRL_F:  # Recompile & upload
             self.run_make("flash")
         elif c == CTRL_A:  # Recompile & upload app only
             self.run_make("app-flash")
-### Begin change - Profiler - Joao Lopes #TODO: this not working yet
-#        elif c == CTRL_Y:  # Turn on/off the profiler
-#            if self.PROFILER:
-#                self.PROFILER = False
-#                red_print("* Profiler off")
-#            else:
-#                self.PROFILER = True
-#                red_print("* Profiler on")
-### End change - Profiler - Joao Lopes
+        elif c == CTRL_Y:  # Toggle output display
+            self.output_toggle()
+        elif c == CTRL_P:
+            yellow_print("Pause app (enter bootloader mode), press Ctrl-T Ctrl-R to restart")
+            # to fast trigger pause without press menu key
+            self.serial.setDTR(False)  # IO0=HIGH
+            self.serial.setRTS(True)   # EN=LOW, chip in reset
+            time.sleep(1.3) # timeouts taken from esptool.py, includes esp32r0 workaround. defaults: 0.1
+            self.serial.setDTR(True)   # IO0=LOW
+            self.serial.setRTS(False)  # EN=HIGH, chip out of reset
+            time.sleep(0.45) # timeouts taken from esptool.py, includes esp32r0 workaround. defaults: 0.05
+            self.serial.setDTR(False)  # IO0=HIGH, done
         else:
             red_print('--- unknown menu character {} --'.format(key_description(c)))
 
@@ -489,13 +503,16 @@ class Monitor(object):
 ---    {reset:7} Reset target board via RTS line
 ---    {make:7} Run 'make flash' to build & flash
 ---    {appmake:7} Run 'make app-flash to build & flash app
+---    {output:7} Toggle output display
+---    {pause:7} Reset target into bootloader to pause app via RTS line
 """.format(version=__version__,
            exit=key_description(self.exit_key),
            menu=key_description(self.menu_key),
            reset=key_description(CTRL_R),
            make=key_description(CTRL_F),
            appmake=key_description(CTRL_A),
-
+           output=key_description(CTRL_Y),
+           pause=key_description(CTRL_P),
            )
 
     def __enter__(self):
@@ -542,11 +559,13 @@ class Monitor(object):
                 p.wait()
             if p.returncode != 0:
                 self.prompt_next_action("Build failed")
+            else:
+                self.output_enable(True)
 
     def lookup_pc_address(self, pc_addr):
         translation = subprocess.check_output(
             ["%saddr2line" % self.toolchain_prefix,
-             "-pfia", "-e", self.elf_file, pc_addr],
+             "-pfiaC", "-e", self.elf_file, pc_addr],
             cwd=".")
         if not "?? ??:0" in translation:
             yellow_print(translation)
@@ -578,6 +597,13 @@ class Monitor(object):
             except KeyboardInterrupt:
                 pass  # happens on Windows, maybe other OSes
             self.prompt_next_action("gdb exited")
+
+    def output_enable(self, enable):
+        self._output_enabled = enable
+
+    def output_toggle(self):
+        self._output_enabled = not self._output_enabled
+        yellow_print("\nToggle output display: {}, Type Ctrl-T Ctrl-Y to show/disable output again.".format(self._output_enabled))
 
 def main():
     parser = argparse.ArgumentParser("idf_monitor - a serial output monitor for esp-idf")
@@ -708,7 +734,15 @@ if os.name == 'nt':
                             self.output.write(self.matched) # not an ANSI color code, display verbatim
                         self.matched = b''
                 else:
-                    self.output.write(b)
+                    try:
+                        self.output.write(b)
+                    except IOError:
+                        # Windows 10 bug since the Fall Creators Update, sometimes writing to console randomly fails
+                        # (but usually succeeds the second time, it seems.) Ref https://github.com/espressif/esp-idf/issues/1136
+                        try:
+                            self.output.write(b)
+                        except IOError:
+                            pass
                     self.matched = b''
 
         def flush(self):
