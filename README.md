@@ -1,4 +1,4 @@
-#ESP-IDF Monitor - Simple profiler
+##ESP-IDF Monitor - Simple profiler
 
 ## Update of IDF Monitor to give a simple profiler output
 
