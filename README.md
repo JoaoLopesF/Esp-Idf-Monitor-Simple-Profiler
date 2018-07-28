@@ -34,7 +34,8 @@ I hope it's useful
 ## How it looks
 
 ![Imgur Image](https://i.imgur.com/ZVCQENq.png)
-    
+Obs: the "P(nnn)" is a profiler, where nnn is a time in microseconds elapsed
+
 ## Wishlist
 - Make a keyboard shortcuts to enable/disable the profiler
 
