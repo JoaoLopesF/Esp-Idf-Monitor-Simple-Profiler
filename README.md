@@ -31,6 +31,10 @@ To install, just download the file idf_monitor.py, just go to $IDF_PATH/tools, r
 
 I hope it's useful
 
+## Screen shot
+
+    ![Imgur Image](https://i.imgur.com/ZVCQENq.png)
+    
 ## Wishlist
 - Make a keyboard shortcuts to enable/disable the profiler
 
